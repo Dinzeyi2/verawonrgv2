@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import intake, documents, payment, session
+from app.api import intake, documents, session
 from app.core.config import settings
 
 app = FastAPI(
