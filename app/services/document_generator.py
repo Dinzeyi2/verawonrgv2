@@ -12,11 +12,11 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import inch
-from reportlab.pdfgen import canvas as rl_canvas
 from pypdf import PdfWriter, PdfReader
 from sqlalchemy.orm import Session as DBSession
 from app.services.form_registry import get_forms_for_session
 from app.services.form_fetcher import fetch_all_forms_for_session
+from app.services.pdf_filler import fill_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ def generate_full_packet(session_id: str, data: dict, db: DBSession) -> str:
         for feature, forms in fetched_forms.items():
             feature_overlay = overlays.get(feature, {})
             for filename, pdf_bytes in forms.items():
-                modified = _overlay_text_on_pdf(pdf_bytes, feature_overlay)
+                modified = fill_pdf(pdf_bytes, feature_overlay)
                 zipf.writestr(f"{feature}/{filename}", modified)
 
     logger.info(f"Packet generated: {zip_path}")
