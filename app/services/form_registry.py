@@ -12,9 +12,9 @@ FORM_REGISTRY = {
     # FEATURE 1 — DIVORCE PETITION FORMS
     # ══════════════════════════════════════════════════════════════
     "01_divorce": {
-        "Alabama": [("AL_divorce_complaint.pdf","https://judicial.alabama.gov/docs/library/forms/CS-47.pdf"),("AL_divorce_answer.pdf","https://judicial.alabama.gov/docs/library/forms/CS-48.pdf")],
-        "Alaska": [("AK_divorce_packet.pdf","https://courts.alaska.gov/shc/family/docs/shc-1100.pdf")],
-        "Arizona": [("AZ_divorce_petition.pdf","https://www.azcourts.gov/Portals/31/AdminOrders/DR10f.pdf"),("AZ_response.pdf","https://www.azcourts.gov/Portals/31/AdminOrders/DR20f.pdf")],
+        "Alabama": [("AL_divorce_complaint.pdf","https://eforms.alacourt.gov/media/lmgc2trw/divorce-complaint.pdf"),("AL_uncontested_divorce_packet.pdf","https://eforms.alacourt.gov/media/ah3bv32s/uncontested-divorce-packet.pdf"),("AL_final_judgment_divorce.pdf","https://eforms.alacourt.gov/media/jzndukam/final-judgment-of-divorce.pdf")],
+        "Alaska": [("AK_dissolution_with_children.pdf","https://public.courts.alaska.gov/web/forms/docs/dr-1total.pdf"),("AK_dissolution_no_children.pdf","https://public.courts.alaska.gov/web/forms/docs/dr-2total.pdf"),("AK_divorce_no_children_complaint.pdf","https://courts.alaska.gov/shc/family/docs/shc-111n.pdf")],
+        "Arizona": [("AZ_divorce_petition.pdf","https://www.azcourts.gov/Portals/0/31/Forms/AOCDR10H.pdf")],
         "Arkansas": [("AR_divorce_complaint.pdf","https://www.arcourts.gov/sites/default/files/ComplaintForDivorce.pdf")],
         "California": [("CA_FL100_petition.pdf","https://www.courts.ca.gov/documents/fl100.pdf"),("CA_FL110_summons.pdf","https://www.courts.ca.gov/documents/fl110.pdf"),("CA_FL120_response.pdf","https://www.courts.ca.gov/documents/fl120.pdf"),("CA_FL150_financial.pdf","https://www.courts.ca.gov/documents/fl150.pdf"),("CA_FL180_judgment.pdf","https://www.courts.ca.gov/documents/fl180.pdf")],
         "Colorado": [("CO_JDF1000_petition.pdf","https://www.courts.state.co.us/userfiles/file/Court_Probation/Self_Help/Forms/Family_Law/JDF%201000%20R10-21%20Petition%20for%20Dissolution%20of%20Marriage%20or%20Legal%20Separation.pdf")],
@@ -75,7 +75,7 @@ FORM_REGISTRY = {
         "Arizona": [("AZ_DMV_960236.pdf","https://azdot.gov/sites/default/files/media/96-0236.pdf")],
         "Arkansas": [("AR_DMV_DL1.pdf","https://www.dfa.arkansas.gov/images/uploads/motorVehicleOffice/DL1.pdf")],
         "California": [("CA_DMV_DL44.pdf","https://www.dmv.ca.gov/portal/uploads/2020/05/dl44.pdf")],
-        "Colorado": [("CO_DMV_DR2818.pdf","https://dmv.colorado.gov/sites/dmv/files/documents/DR2818.pdf")],
+        "Colorado": [("CO_DMV_name_change_instructions.pdf","https://dmv.colorado.gov/update-change-manage-your-name-your-credential")],
         "Connecticut": [("CT_DMV_B230.pdf","https://portal.ct.gov/-/media/DMV/Forms/B-230.pdf")],
         "Delaware": [("DE_DMV_MV212.pdf","https://www.dmv.de.gov/sites/default/files/pdf/forms/MV212.pdf")],
         "Florida": [("FL_DMV_HSMV72010.pdf","https://www.flhsmv.gov/pdf/forms/72010.pdf")],
@@ -128,9 +128,9 @@ FORM_REGISTRY = {
     # ══════════════════════════════════════════════════════════════
     "03_asset": {
         "_FEDERAL": [("IRS_Pub575_pension.pdf","https://www.irs.gov/pub/irs-pdf/p575.pdf"),("DOL_QDRO_guide.pdf","https://www.dol.gov/sites/dolgov/files/ebsa/about-ebsa/our-activities/resource-center/publications/qdros-the-division-of-retirement-benefits-through-qualified-domestic-relations-orders.pdf")],
-        "Alabama": [("AL_CS47.pdf","https://judicial.alabama.gov/docs/library/forms/CS-47.pdf")],
-        "Alaska": [("AK_property_division.pdf","https://courts.alaska.gov/shc/family/docs/shc-1320.pdf")],
-        "Arizona": [("AZ_DR45_financial.pdf","https://www.azcourts.gov/Portals/31/AdminOrders/DR45f.pdf"),("AZ_DR65_property.pdf","https://www.azcourts.gov/Portals/31/AdminOrders/DR65f.pdf")],
+        "Alabama": [("AL_uncontested_divorce_packet.pdf","https://eforms.alacourt.gov/media/ah3bv32s/uncontested-divorce-packet.pdf")],
+        "Alaska": [("AK_property_division.pdf","https://public.courts.alaska.gov/web/forms/docs/dr-2total.pdf")],
+        "Arizona": [("AZ_DR45_financial.pdf","https://www.azcourts.gov/Portals/0/31/Forms/AOCDR45H.pdf"),("AZ_DR65_property.pdf","https://www.azcourts.gov/Portals/0/31/Forms/AOCDR65H.pdf")],
         "Arkansas": [("AR_property_settlement.pdf","https://www.arcourts.gov/sites/default/files/PropertySettlementAgreement.pdf")],
         "California": [("CA_FL160_property.pdf","https://www.courts.ca.gov/documents/fl160.pdf"),("CA_FL142_asset_debt.pdf","https://www.courts.ca.gov/documents/fl142.pdf"),("CA_FL150_income.pdf","https://www.courts.ca.gov/documents/fl150.pdf")],
         "Colorado": [("CO_JDF1104_financial.pdf","https://www.courts.state.co.us/userfiles/file/Court_Probation/Self_Help/Forms/Family_Law/JDF%201104%20R7-20%20Sworn%20Financial%20Statement.pdf"),("CO_JDF1115_separation.pdf","https://www.courts.state.co.us/userfiles/file/Court_Probation/Self_Help/Forms/Family_Law/JDF%201115%20R7-20%20Separation%20Agreement.pdf")],
@@ -185,9 +185,9 @@ FORM_REGISTRY = {
     # FEATURE 4 — CO-PARENTING PLAN FORMS
     # ══════════════════════════════════════════════════════════════
     "04_coparenting": {
-        "Alabama": [("AL_CS47_custody.pdf","https://judicial.alabama.gov/docs/library/forms/CS-47.pdf")],
-        "Alaska": [("AK_parenting_plan.pdf","https://courts.alaska.gov/shc/family/docs/shc-1310.pdf"),("AK_child_support.pdf","https://courts.alaska.gov/shc/family/docs/shc-1312.pdf")],
-        "Arizona": [("AZ_DR35_parenting_plan.pdf","https://www.azcourts.gov/Portals/31/AdminOrders/DR35f.pdf"),("AZ_DR40_child_support.pdf","https://www.azcourts.gov/Portals/31/AdminOrders/DR40f.pdf")],
+        "Alabama": [("AL_uncontested_divorce_packet.pdf","https://eforms.alacourt.gov/media/ah3bv32s/uncontested-divorce-packet.pdf")],
+        "Alaska": [("AK_parenting_plan.pdf","https://public.courts.alaska.gov/web/forms/docs/dr-1total.pdf"),("AK_child_support.pdf","https://courts.alaska.gov/shc/family/docs/shc-1100n.pdf")],
+        "Arizona": [("AZ_DR35_parenting_plan.pdf","https://www.azcourts.gov/Portals/0/31/Forms/AOCDR35H.pdf"),("AZ_DR40_child_support.pdf","https://www.azcourts.gov/Portals/0/31/Forms/AOCDR40H.pdf")],
         "Arkansas": [("AR_custody_order.pdf","https://www.arcourts.gov/sites/default/files/CustodyOrder.pdf")],
         "California": [("CA_FL341_parenting_plan.pdf","https://www.courts.ca.gov/documents/fl341.pdf"),("CA_FL342_child_support.pdf","https://www.courts.ca.gov/documents/fl342.pdf"),("CA_FL311_custody.pdf","https://www.courts.ca.gov/documents/fl311.pdf")],
         "Colorado": [("CO_JDF1113_parenting.pdf","https://www.courts.state.co.us/userfiles/file/Court_Probation/Self_Help/Forms/Family_Law/JDF%201113%20R7-20%20Parenting%20Plan.pdf"),("CO_JDF1818_child_support.pdf","https://www.courts.state.co.us/userfiles/file/Court_Probation/Self_Help/Forms/Family_Law/JDF%201818%20R10-21%20Child%20Support%20Worksheet.pdf")],
@@ -243,9 +243,9 @@ FORM_REGISTRY = {
     # ══════════════════════════════════════════════════════════════
     "05_financial": {
         "_FEDERAL": [("IRS_W4.pdf","https://www.irs.gov/pub/irs-pdf/fw4.pdf"),("IRS_W4P.pdf","https://www.irs.gov/pub/irs-pdf/fw4p.pdf"),("IRS_8332_child_exemption.pdf","https://www.irs.gov/pub/irs-pdf/f8332.pdf"),("IRS_Pub504_divorced_taxes.pdf","https://www.irs.gov/pub/irs-pdf/p504.pdf"),("IRS_Pub501_filing_status.pdf","https://www.irs.gov/pub/irs-pdf/p501.pdf"),("SSA_survivors_guide.pdf","https://www.ssa.gov/pubs/EN-05-10084.pdf"),("SSA_retirement_benefits.pdf","https://www.ssa.gov/pubs/EN-05-10050.pdf"),("DOL_COBRA_guide.pdf","https://www.dol.gov/sites/dolgov/files/ebsa/about-ebsa/our-activities/resource-center/publications/an-employees-guide-to-health-benefits-under-cobra.pdf"),("DOL_QDRO_guide.pdf","https://www.dol.gov/sites/dolgov/files/ebsa/about-ebsa/our-activities/resource-center/publications/qdros-the-division-of-retirement-benefits-through-qualified-domestic-relations-orders.pdf")],
-        "Alabama": [("AL_financial_affidavit.pdf","https://judicial.alabama.gov/docs/library/forms/CS-47.pdf")],
-        "Alaska": [("AK_financial_disclosure.pdf","https://courts.alaska.gov/shc/family/docs/shc-1330.pdf")],
-        "Arizona": [("AZ_financial_affidavit.pdf","https://www.azcourts.gov/Portals/31/AdminOrders/DR45f.pdf")],
+        "Alabama": [("AL_uncontested_divorce_packet.pdf","https://eforms.alacourt.gov/media/ah3bv32s/uncontested-divorce-packet.pdf")],
+        "Alaska": [("AK_financial_disclosure.pdf","https://public.courts.alaska.gov/web/forms/docs/dr-2total.pdf")],
+        "Arizona": [("AZ_financial_affidavit.pdf","https://www.azcourts.gov/Portals/0/31/Forms/AOCDR45H.pdf")],
         "Arkansas": [("AR_financial_affidavit.pdf","https://www.arcourts.gov/sites/default/files/FinancialAffidavit.pdf")],
         "California": [("CA_FL150_income_expense.pdf","https://www.courts.ca.gov/documents/fl150.pdf"),("CA_FL157_spousal_support.pdf","https://www.courts.ca.gov/documents/fl157.pdf")],
         "Colorado": [("CO_JDF1104_financial.pdf","https://www.courts.state.co.us/userfiles/file/Court_Probation/Self_Help/Forms/Family_Law/JDF%201104%20R7-20%20Sworn%20Financial%20Statement.pdf")],
