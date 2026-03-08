@@ -5,7 +5,6 @@ from app.core.config import settings
 
 app = FastAPI(
     title="Legal-to-Go API",
-    description="AI-powered divorce filing & life transition document generator",
     version="1.0.0"
 )
 
@@ -20,7 +19,6 @@ app.add_middleware(
 app.include_router(session.router, prefix="/api/session", tags=["Session"])
 app.include_router(intake.router, prefix="/api/intake", tags=["Intake"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
-app.include_router(payment.router, prefix="/api/payment", tags=["Payment"])
 
 @app.get("/health")
 def health():
