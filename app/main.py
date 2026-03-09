@@ -3,6 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import intake, documents, session
 from app.core.config import settings
 
+from app.core.database import init_db
+
+@app.on_event("startup")
+def startup():
+    init_db()
+
 app = FastAPI(
     title="Legal-to-Go API",
     version="1.0.0"
