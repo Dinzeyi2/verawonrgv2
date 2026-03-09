@@ -2,12 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import intake, documents, session
 from app.core.config import settings
-
 from app.core.database import init_db
-
-@app.on_event("startup")
-def startup():
-    init_db()
 
 app = FastAPI(
     title="Legal-to-Go API",
@@ -16,11 +11,15 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def startup():
+    init_db()
 
 app.include_router(session.router, prefix="/api/session", tags=["Session"])
 app.include_router(intake.router, prefix="/api/intake", tags=["Intake"])
