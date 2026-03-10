@@ -138,7 +138,7 @@ def _normalize(data: dict) -> dict:
         d["wants_name_change"] = d["petitioner_wants_name_change"]
 
     # ── New name aliases ──────────────────────────────────────────
-    if "new_name_after_divorce" in d and "new_name_last" not in d:
+    if d.get("new_name_after_divorce") and "new_name_last" not in d:
         parts = d["new_name_after_divorce"].split()
         d["new_name_first"] = parts[0] if parts else ""
         d["new_name_last"]  = parts[-1] if len(parts) > 1 else ""
