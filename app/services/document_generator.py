@@ -24,16 +24,16 @@ logger = logging.getLogger(__name__)
 
 def _styles():
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='Brand',  fontSize=9,  fontName='Helvetica',
+    styles.add(ParagraphStyle(name='LtgBrand',  fontSize=9,  fontName='Helvetica',
                                textColor=colors.HexColor('#aaaaaa')))
-    styles.add(ParagraphStyle(name='Title',  fontSize=22, fontName='Helvetica-Bold',
+    styles.add(ParagraphStyle(name='LtgTitle',  fontSize=22, fontName='Helvetica-Bold',
                                textColor=colors.HexColor('#1a1a2e'), spaceAfter=4))
-    styles.add(ParagraphStyle(name='Sub',    fontSize=12, fontName='Helvetica',
+    styles.add(ParagraphStyle(name='LtgSub',    fontSize=12, fontName='Helvetica',
                                textColor=colors.HexColor('#555555'), spaceAfter=4))
-    styles.add(ParagraphStyle(name='SectionHeader', fontSize=13, fontName='Helvetica-Bold',
+    styles.add(ParagraphStyle(name='LtgSectionHeader', fontSize=13, fontName='Helvetica-Bold',
                                spaceAfter=8, spaceBefore=16, textColor=colors.HexColor('#1a1a2e')))
-    styles.add(ParagraphStyle(name='FieldValue', fontSize=10, fontName='Helvetica', spaceAfter=6))
-    styles.add(ParagraphStyle(name='Note',   fontSize=8,  fontName='Helvetica-Oblique',
+    styles.add(ParagraphStyle(name='LtgFieldValue', fontSize=10, fontName='Helvetica', spaceAfter=6))
+    styles.add(ParagraphStyle(name='LtgNote',   fontSize=8,  fontName='Helvetica-Oblique',
                                textColor=colors.HexColor('#888888')))
     return styles
 
@@ -46,18 +46,18 @@ def _build_cover_sheet(data: dict) -> bytes:
     styles = _styles()
     story = []
 
-    story.append(Paragraph("LEGAL-TO-GO", styles['Brand']))
-    story.append(Paragraph("Complete Filing Packet", styles['Title']))
+    story.append(Paragraph("LEGAL-TO-GO", styles['LtgBrand']))
+    story.append(Paragraph("Complete Filing Packet", styles['LtgTitle']))
     story.append(Paragraph(
         f"Prepared for: {data.get('petitioner_name', '')}",
-        styles['Sub']))
+        styles['LtgSub']))
     story.append(Paragraph(
         f"State: {data.get('filing_state', '')} &nbsp;|&nbsp; Generated: {datetime.now().strftime('%B %d, %Y')}",
-        styles['Note']))
+        styles['LtgNote']))
     story.append(HRFlowable(width="100%", thickness=1,
                              color=colors.HexColor('#e0e0e0'), spaceAfter=16))
 
-    story.append(Paragraph("WHAT'S IN YOUR PACKET", styles['SectionHeader']))
+    story.append(Paragraph("WHAT'S IN YOUR PACKET", styles['LtgSectionHeader']))
 
     sections = [("01", "Divorce Petition Forms",
                  "Official state court forms pre-filled with your information")]
@@ -74,24 +74,24 @@ def _build_cover_sheet(data: dict) -> bytes:
                      "IRS W-4, beneficiary checklist, COBRA notice"))
 
     for num, title, desc in sections:
-        story.append(Paragraph(f"<b>{num}. {title}</b>", styles['FieldValue']))
-        story.append(Paragraph(desc, styles['Note']))
+        story.append(Paragraph(f"<b>{num}. {title}</b>", styles['LtgFieldValue']))
+        story.append(Paragraph(desc, styles['LtgNote']))
         story.append(Spacer(1, 6))
 
     story.append(Spacer(1, 16))
-    story.append(Paragraph("NEXT STEPS", styles['SectionHeader']))
+    story.append(Paragraph("NEXT STEPS", styles['LtgSectionHeader']))
     story.append(Paragraph(
         "1. Review all documents carefully before signing.<br/>"
         "2. Sign where indicated (look for signature lines).<br/>"
         "3. File the divorce petition at your county courthouse.<br/>"
         "4. Bring certified divorce decree to update name change documents.<br/>"
         "5. Update your W-4 and beneficiaries with your employer.",
-        styles['FieldValue']))
+        styles['LtgFieldValue']))
     story.append(Spacer(1, 16))
     story.append(Paragraph(
         "DISCLAIMER: Legal-to-Go is a document preparation service, not a law firm. "
         "These documents do not constitute legal advice. Consult a licensed attorney for legal guidance.",
-        styles['Note']))
+        styles['LtgNote']))
 
     doc.build(story)
     return buf.getvalue()
