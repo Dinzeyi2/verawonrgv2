@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 from app.core.database import get_db, SessionLocal
 from app.models.db import Session, GeneratedPacket
+from app.services.document_generator import generate_packet as generate_full_packet
 from app.services.form_fetcher import get_cache_stats
 import os
 
