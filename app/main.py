@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import intake, documents, session
 from app.core.config import settings
 from app.core.database import init_db
+from app.api import field_inspector
+
 
 app = FastAPI(
     title="Legal-to-Go API",
@@ -24,6 +26,7 @@ def startup():
 app.include_router(session.router, prefix="/api/session", tags=["Session"])
 app.include_router(intake.router, prefix="/api/intake", tags=["Intake"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
+app.include_router(field_inspector.router, prefix="/api")
 
 @app.get("/health")
 def health():
