@@ -208,8 +208,8 @@ async def run_intake_turn(conversation: list, user_message: str) -> dict:
         updated_conversation = conversation + [{"role": "user", "content": user_message}]
 
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1000,
+        model="claude-sonnet-4-5-20251001",
+        max_tokens=4000,
         system=SYSTEM_PROMPT,
         messages=updated_conversation if updated_conversation else [
             {"role": "user", "content": "Start the interview"}
@@ -276,8 +276,8 @@ IMPORTANT field name requirements:
 Return ONLY valid JSON, no markdown, no backticks, no other text."""
 
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2000,
+        model="claude-sonnet-4-5-20251001",
+        max_tokens=4000,
         system="You are a data extraction assistant. Return only valid JSON with no markdown formatting.",
         messages=conversation + [{"role": "user", "content": extraction_prompt}]
     )
