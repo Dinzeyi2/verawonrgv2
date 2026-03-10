@@ -178,3 +178,29 @@ def get_ca_fields(form_filename: str, user_data: dict) -> dict:
         if resolved is not None and resolved != "":
             result[field_name] = resolved
     return result
+
+
+# ---------------------------------------------------------------------------
+# PATCH: override get_ca_fields with filename-aware lookup
+# ---------------------------------------------------------------------------
+_FILENAME_MAP = {
+    "ca_fl100_petition":        CA_FL100,
+    "ca_fl110_summons":         CA_FL110,
+    "ca_fl120_response":        CA_FL120,
+    "ca_fl180_judgment":        CA_FL180,
+    "irs_w4_withholding":       IRS_W4,
+    "irs_w4p_pension":          IRS_W4,
+    "irs_8822_address_change":  IRS_8822,
+    "irs_8332_child_exemption": IRS_8332,
+    "ssa_ss5_name_change":      SSA_SS5,
+}
+
+def get_ca_fields(form_filename: str, user_data: dict) -> dict:
+    key = form_filename.lower().replace(".pdf", "")
+    mapping = _FILENAME_MAP.get(key, {})
+    result = {}
+    for field_name, val in mapping.items():
+        resolved = resolve_value(val, user_data)
+        if resolved is not None and resolved != "":
+            result[field_name] = resolved
+    return result
