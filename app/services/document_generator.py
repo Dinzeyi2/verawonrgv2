@@ -98,41 +98,83 @@ def _build_cover_sheet(data: dict) -> bytes:
 
 
 def _normalize(data: dict) -> dict:
-    """Reconcile interview field names to what the mapping files expect."""
+    """Reconcile ALL interview field names to what the mapping files expect."""
     d = dict(data)
 
+    # ── Name aliases ──────────────────────────────────────────────
     if "petitioner_full_name" in d and "petitioner_name" not in d:
         d["petitioner_name"] = d["petitioner_full_name"]
     if "respondent_full_name" in d and "respondent_name" not in d:
         d["respondent_name"] = d["respondent_full_name"]
 
+    # Split full names into first/last
     if "petitioner_name" in d and "petitioner_first" not in d:
         parts = d["petitioner_name"].split()
         d["petitioner_first"] = parts[0] if parts else ""
         d["petitioner_last"]  = parts[-1] if len(parts) > 1 else ""
-
     if "respondent_name" in d and "respondent_first" not in d:
         parts = d["respondent_name"].split()
         d["respondent_first"] = parts[0] if parts else ""
         d["respondent_last"]  = parts[-1] if len(parts) > 1 else ""
 
-    if "has_minor_children" in d and "has_children" not in d:
-        d["has_children"] = d["has_minor_children"]
-    if "petitioner_wants_name_change" in d and "wants_name_change" not in d:
-        d["wants_name_change"] = d["petitioner_wants_name_change"]
+    # ── Location aliases ──────────────────────────────────────────
+    if "filing_county" in d and "county" not in d:
+        d["county"] = d["filing_county"]
+    if "marriage_county" in d and "marriage_county" not in d:
+        d["marriage_county"] = d["marriage_county"]
+    if "petitioner_state" in d and "filing_state" not in d:
+        d["filing_state"] = d["petitioner_state"]
 
-    if "new_name_after_divorce" in d and "new_name_last" not in d:
-        parts = d["new_name_after_divorce"].split()
-        d["new_name_first"] = parts[0] if parts else ""
-        d["new_name_last"]  = parts[-1] if len(parts) > 1 else ""
-
+    # ── Date aliases ──────────────────────────────────────────────
     if "marriage_date" in d and "date_of_marriage" not in d:
         d["date_of_marriage"] = d["marriage_date"]
     if "separation_date" in d and "date_of_separation" not in d:
         d["date_of_separation"] = d["separation_date"]
 
-    if "filing_state" in d:
+    # ── Boolean aliases ───────────────────────────────────────────
+    if "has_minor_children" in d and "has_children" not in d:
+        d["has_children"] = d["has_minor_children"]
+    if "petitioner_wants_name_change" in d and "wants_name_change" not in d:
+        d["wants_name_change"] = d["petitioner_wants_name_change"]
+
+    # ── New name aliases ──────────────────────────────────────────
+    if "new_name_after_divorce" in d and "new_name_last" not in d:
+        parts = d["new_name_after_divorce"].split()
+        d["new_name_first"] = parts[0] if parts else ""
+        d["new_name_last"]  = parts[-1] if len(parts) > 1 else ""
+
+    # ── Children: normalize dob → birthdate ──────────────────────
+    children = d.get("children", [])
+    for child in children:
+        if "dob" in child and "birthdate" not in child:
+            child["birthdate"] = child["dob"]
+        if "current_residence" in child and "address" not in child:
+            child["address"] = child["current_residence"]
+        # Compute age from birthdate if missing
+        if "birthdate" in child and "age" not in child:
+            try:
+                from datetime import datetime
+                dob = datetime.strptime(child["birthdate"], "%Y-%m-%d")
+                child["age"] = (datetime.now() - dob).days // 365
+            except Exception:
+                pass
+    d["children"] = children
+
+    # ── Court info defaults ───────────────────────────────────────
+    if "county" in d and "court_branch" not in d:
+        d["court_branch"] = f"{d['county']} County Courthouse"
+    if "county" in d and "court_city_zip" not in d:
+        d["court_city_zip"] = d.get("petitioner_city", "")
+
+    # ── State uppercase ───────────────────────────────────────────
+    if "filing_state" in d and d["filing_state"]:
         d["filing_state"] = d["filing_state"].upper()
+        # Map full state name to abbreviation if needed
+        state_map = {
+            "CALIFORNIA": "CA", "NEW YORK": "NY", "FLORIDA": "FL",
+            "TEXAS": "TX", "ARIZONA": "AZ", "NEVADA": "NV",
+        }
+        d["filing_state"] = state_map.get(d["filing_state"], d["filing_state"])
 
     return d
 
