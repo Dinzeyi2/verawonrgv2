@@ -10,7 +10,6 @@ import os
 
 router = APIRouter()
 
-
 async def _generate_and_save(session_id: str, data: dict, db: DBSession):
     try:
         zip_path = generate_full_packet(session_id, data, db)
@@ -28,10 +27,8 @@ async def _generate_and_save(session_id: str, data: dict, db: DBSession):
     except Exception as e:
         print(f"Generation error for {session_id}: {e}")
 
-
 class GenerateRequest(BaseModel):
     session_id: str
-
 
 @router.post("/generate")
 async def generate_packet(
@@ -42,16 +39,12 @@ async def generate_packet(
     session = db.query(Session).filter(Session.id == body.session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if not session.paid:
-        raise HTTPException(status_code=402, detail="Payment required")
     if session.packet_path and os.path.exists(session.packet_path):
         return {"status": "ready", "message": "Packet already generated"}
-
     session.stage = "generating"
     db.commit()
     background_tasks.add_task(_generate_and_save, session.id, session.data or {}, db)
     return {"status": "generating", "message": "Your packet is being generated. Poll /status in a few seconds."}
-
 
 @router.get("/status/{session_id}")
 def packet_status(session_id: str, db: DBSession = Depends(get_db)):
@@ -63,14 +56,11 @@ def packet_status(session_id: str, db: DBSession = Depends(get_db)):
         "ready": session.stage == "complete" and session.packet_path is not None
     }
 
-
 @router.get("/download/{session_id}")
 def download_packet(session_id: str, db: DBSession = Depends(get_db)):
     session = db.query(Session).filter(Session.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if not session.paid:
-        raise HTTPException(status_code=402, detail="Payment required")
     if not session.packet_path or not os.path.exists(session.packet_path):
         raise HTTPException(status_code=404, detail="Packet not ready yet")
     name = (session.data or {}).get("petitioner_full_name", "user").replace(" ", "_")
@@ -80,8 +70,6 @@ def download_packet(session_id: str, db: DBSession = Depends(get_db)):
         filename=f"LegalToGo_Complete_Packet_{name}.zip"
     )
 
-
 @router.get("/cache/stats")
 def cache_stats(db: DBSession = Depends(get_db)):
-    """Admin endpoint — shows form cache status."""
     return get_cache_stats(db)
