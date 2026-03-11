@@ -1,252 +1,295 @@
 """
-SMART INTAKE AGENT — v3
-- Grouped questions (10 min flow)
-- Does NOT rely on mid-conversation <DATA> tags
-- Full extraction happens at end via finalize_data_extraction
-- is_complete fires reliably on INTERVIEW_COMPLETE tag
+SMART INTAKE AGENT v4
+Flow:
+  1. Ask 3 screening questions → determine which forms are needed
+  2. Fetch those PDFs → extract real field names + labels
+  3. Claude reads the field labels → generates targeted questions
+  4. User answers → Claude maps answers to exact field names
+  5. Every field filled correctly
 """
 
 import anthropic
 import json
 import logging
+import requests
+import io
+from pypdf import PdfReader
 from app.core.config import settings
+from app.services.form_registry import FORM_REGISTRY
 
 client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 logger = logging.getLogger(__name__)
 
-COMPLETE_FIELD_MANIFEST = """
-REQUIRED DATA TO FILL ALL DIVORCE FORMS COMPLETELY:
 
-=== PETITIONER (person filing) ===
-- petitioner_full_name, petitioner_dob, petitioner_address, petitioner_city
-- petitioner_state, petitioner_zip, petitioner_phone, petitioner_email
-- petitioner_gender, petitioner_birth_city, petitioner_birth_state
-- petitioner_employer, petitioner_employer_address, petitioner_occupation
-- petitioner_income (annual), petitioner_monthly_income
-- petitioner_ssn_1 (first 3), petitioner_ssn_2 (middle 2), petitioner_ssn_3 (last 4)
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 1: Extract real field names from PDFs
+# ─────────────────────────────────────────────────────────────────────────────
 
-=== RESPONDENT (spouse) ===
-- respondent_full_name, respondent_dob, respondent_address, respondent_city
-- respondent_state, respondent_zip, respondent_phone
-- respondent_employer, respondent_occupation
-- respondent_income (annual), respondent_monthly_income
+def _fetch_pdf_fields(url: str, filename: str) -> dict:
+    """Fetch a PDF and return its real AcroForm field names and labels."""
+    try:
+        resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+        if resp.status_code != 200:
+            return {"filename": filename, "type": "unavailable"}
 
-=== MARRIAGE ===
-- marriage_date (MM/DD/YYYY), separation_date (MM/DD/YYYY)
-- marriage_city, marriage_county, marriage_state, marriage_city_state
-- marriage_type: "marriage" or "dp"
+        reader = PdfReader(io.BytesIO(resp.content))
+        fields = reader.get_fields()
 
-=== FILING ===
-- filing_state (2-letter), filing_county
-- courthouse, court_street, court_city_zip
+        if not fields:
+            return {"filename": filename, "type": "flat_pdf", "fields": []}
 
-=== MONTHLY EXPENSES ===
-- expense_rent_mortgage, expense_food, expense_utilities
-- expense_transportation, expense_health_insurance, expense_childcare
-- expense_clothing, expense_education, expense_entertainment, expense_other
-- total_monthly_expenses
+        field_list = []
+        for name, field in fields.items():
+            label = str(field.get("/TU", field.get("/T", name)))
+            ftype = str(field.get("/FT", "text"))
+            field_list.append({
+                "field_name": name,
+                "label": label,
+                "type": ftype
+            })
 
-=== CHILDREN (if has_minor_children = true) ===
-- has_minor_children (true/false)
-- children: [{name, dob, ssn, current_residence, school}]
-- custody_type: "joint" | "sole_petitioner" | "sole_respondent"
-- child_support_amount, child_support_payor
-- parenting_schedule_description, visitation_schedule
+        return {"filename": filename, "type": "fillable", "fields": field_list}
 
-=== PROPERTY (if has_real_property = true) ===
-- has_real_property (true/false)
-- real_property_address, real_property_value, real_property_mortgage_balance
-- real_property_equity, real_property_disposition, real_property_lender
+    except Exception as e:
+        logger.error(f"Failed to fetch {filename}: {e}")
+        return {"filename": filename, "type": "error", "fields": []}
 
-=== OTHER ASSETS ===
-- has_vehicles (true/false)
-- vehicles: [{make, model, year, value, loan_balance, who_keeps}]
-- has_joint_bank_accounts (true/false)
-- bank_accounts: [{bank_name, account_type, balance, who_keeps}]
-- has_retirement_accounts (true/false)
-- retirement_accounts: [{type, owner, value, split_percentage}]
-- has_debts (true/false)
-- debts: [{description, balance, who_responsible}]
 
-=== POST-DIVORCE ===
-- petitioner_wants_name_change (true/false)
-- new_name_after_divorce (if applicable)
-- alimony_requested (true/false)
-- alimony_amount, alimony_duration (if applicable)
+def get_forms_and_fields(state: str, has_children: bool, wants_name_change: bool, has_assets: bool) -> list:
+    """
+    Given screening answers, return list of needed forms with their real PDF fields.
+    """
+    from app.services.form_registry import get_forms_for_session
+    needed = get_forms_for_session(state, has_children, wants_name_change, has_assets)
 
-=== PASSPORT (if name change = true) ===
-- has_current_passport (true/false)
-- passport_number, passport_issue_date, passport_expiration_date
-- passport_action: "renew" or "new"
-"""
+    forms_with_fields = []
+    for feature, form_list in needed.items():
+        for filename, url in form_list:
+            # Skip pure reference/guide PDFs — they have no fillable fields
+            skip_keywords = ["guide", "pub501", "pub504", "pub575", "survivors", "cobra"]
+            if any(kw in filename.lower() for kw in skip_keywords):
+                forms_with_fields.append({
+                    "filename": filename,
+                    "feature": feature,
+                    "type": "reference",
+                    "fields": []
+                })
+                continue
 
-SYSTEM_PROMPT = f"""You are a compassionate, professional legal document preparation assistant for Legal-to-Go.
+            field_data = _fetch_pdf_fields(url, filename)
+            field_data["feature"] = feature
+            forms_with_fields.append(field_data)
 
-Your job: collect ALL data needed to fill every field in a complete divorce & life-transition document packet. Complete the interview in exactly 10 steps, ~10 minutes total.
+    return forms_with_fields
 
-{COMPLETE_FIELD_MANIFEST}
 
-INTERVIEW FLOW — follow this EXACTLY, one step per message:
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP 2: Build targeted question list from real field labels
+# ─────────────────────────────────────────────────────────────────────────────
 
-STEP 1: Ask: state + county filing in, and their full legal name.
+def _build_question_prompt(forms_with_fields: list) -> str:
+    """
+    Given real PDF field names, ask Claude to generate grouped questions
+    that will fill every field.
+    """
+    # Summarize fields for Claude
+    field_summary = []
+    for form in forms_with_fields:
+        if form["type"] == "fillable" and form["fields"]:
+            field_summary.append(f"\n=== {form['filename']} ===")
+            for f in form["fields"]:
+                field_summary.append(f"  - [{f['field_name']}] \"{f['label']}\" ({f['type']})")
 
-STEP 2: Ask all at once:
-- Full street address, city, ZIP
-- Phone number and email
-- Date of birth (MM/DD/YYYY)
-- Gender (male/female)
-- Place of birth (city and state)
+    fields_text = "\n".join(field_summary)
 
-STEP 3: Ask all at once:
-- Current employer name and address
-- Job title/occupation
-- Annual gross income
-- Monthly gross income
+    return f"""You are preparing a divorce filing packet. Here are the EXACT fields in the PDF forms that need to be filled:
 
-STEP 4: Ask all at once:
-- Spouse's full legal name
-- Spouse's complete address (street, city, state, ZIP)
-- Spouse's employer and occupation
-- Spouse's annual income (if known)
+{fields_text}
 
-STEP 5: Ask all at once:
-- Date of marriage (MM/DD/YYYY)
-- City and state where married
-- Date of separation (MM/DD/YYYY)
-- Marriage or domestic partnership?
+Your job: generate a grouped interview to collect all the data needed to fill every single field above.
 
-STEP 6: Ask: do they have minor children together (under 18)?
-- If YES → ask all at once: each child's name + DOB + residence, custody type, support amount, who pays, parenting schedule
-- If NO → skip to step 7
+Rules:
+1. Group related fields into natural conversation blocks (identity, marriage, children, assets, etc.)
+2. Ask each group in ONE message — never ask one field at a time
+3. Only ask what's needed — don't ask for fields that don't exist in these forms
+4. Be warm and empathetic — divorce is hard
+5. After ALL data is collected, output a JSON object with field_name → value mappings
+6. Format the JSON inside <FIELD_DATA>...</FIELD_DATA> tags
 
-STEP 7: Ask yes/no for each asset type:
-- Real estate/property together?
-- Joint bank accounts?
-- Retirement accounts (401k, IRA, pension)?
-- Vehicles together?
-- Joint debts (credit cards, loans)?
-For each YES → ask all details in the SAME message.
+Start the interview now with the first group of questions."""
 
-STEP 8: Show this list and ask for monthly dollar amounts:
-"Please give me your monthly amounts for:
-1. Rent/mortgage: $
-2. Food/groceries: $
-3. Utilities: $
-4. Transportation: $
-5. Health insurance: $
-6. Childcare: $
-7. Clothing: $
-8. Education: $
-9. Entertainment: $
-10. Other: $"
-If they say spouse pays everything, explain the court still needs THEIR personal estimates.
 
-STEP 9: Ask all at once:
-- Do you want to change your name after divorce? (if yes → what new name?)
-- Are you requesting alimony/spousal support? (if yes → monthly amount + how many months?)
-- Do you have a valid US passport? (if yes AND name change → ask passport number, issue date, expiration date)
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN INTAKE FLOW
+# ─────────────────────────────────────────────────────────────────────────────
 
-STEP 10: Say: "Almost done! The last thing I need is your Social Security Number — required for the IRS W-4, address change form, and SSA name change form. It stays private and only appears on your forms."
-Ask: all 3 parts of SSN at once (first 3 digits, middle 2, last 4).
-Also ask: spouse's SSN if known (optional).
+SCREENING_PROMPT = """You are a legal document preparation assistant for Legal-to-Go.
 
-After step 10 is answered, output ONLY this — nothing else:
-<INTERVIEW_COMPLETE>
+Start by asking EXACTLY these 4 screening questions in ONE message to determine which forms are needed:
 
-RULES:
-- Do NOT output <DATA> tags mid-interview. Just ask questions naturally.
-- Skip steps that don't apply (no children → skip step 6, no name change → skip passport part of step 9).
-- Be warm and empathetic. Divorce is hard.
-- Accept partial/rough answers and move on. Don't interrogate.
-- After step 10, output <INTERVIEW_COMPLETE> immediately.
+1. What state are you filing in? (This determines which court forms you get)
+2. Do you have minor children together (under 18)? (yes/no)
+3. Do you want to change your name after the divorce? (yes/no)  
+4. Do you have significant assets together — property, retirement accounts, or investments? (yes/no)
+
+After they answer, output their answers in this exact format:
+<SCREENING>
+{"state": "California", "has_children": false, "wants_name_change": false, "has_assets": false}
+</SCREENING>
+
+Then say: "Thank you! Give me a moment while I pull up the exact forms you'll need..."
+And output: <SCREENING_COMPLETE>
 """
 
 
-async def run_intake_turn(conversation: list, user_message: str) -> dict:
-    if user_message == "__START__":
-        updated_conversation = [{"role": "user", "content": "Start the interview"}]
-    else:
+INTERVIEW_SYSTEM = """You are a compassionate legal document preparation assistant for Legal-to-Go.
+
+You have been given the EXACT field names from the PDF forms this person needs to fill out.
+Your job is to ask questions that will collect data for every single field, then map the answers back to exact field names.
+
+Rules:
+1. Ask questions in grouped blocks — cover a whole topic per message (never one field at a time)
+2. Be warm and clear — divorce is stressful
+3. Accept rough answers and move on
+4. When done collecting ALL data, output the complete field mapping as JSON inside <FIELD_DATA>...</FIELD_DATA> tags
+5. Then output <INTERVIEW_COMPLETE>
+
+The JSON inside <FIELD_DATA> must map exact PDF field names to values, like:
+<FIELD_DATA>
+{"FL-100[0].Page1[0].CaptionP1_sf[0].TitlePartyName[0].Party1_ft[0]": "Jane Smith", ...}
+</FIELD_DATA>
+"""
+
+
+async def run_intake_turn(conversation: list, user_message: str, session_meta: dict = None) -> dict:
+    """
+    Main intake turn handler.
+    session_meta holds: {stage, state, has_children, wants_name_change, has_assets, forms_with_fields}
+    """
+    if session_meta is None:
+        session_meta = {}
+
+    stage = session_meta.get("stage", "screening")
+
+    # ── STAGE 1: Screening ────────────────────────────────────────
+    if stage == "screening" or not conversation:
+        if user_message == "__START__":
+            updated_conversation = [{"role": "user", "content": "Start"}]
+        else:
+            updated_conversation = conversation + [{"role": "user", "content": user_message}]
+
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1000,
+            system=SCREENING_PROMPT,
+            messages=updated_conversation
+        )
+
+        reply = response.content[0].text
+        updated_conversation.append({"role": "assistant", "content": reply})
+
+        # Check if screening is complete
+        screening_data = {}
+        if "<SCREENING>" in reply and "</SCREENING>" in reply:
+            try:
+                raw = reply.split("<SCREENING>")[1].split("</SCREENING>")[0].strip()
+                screening_data = json.loads(raw)
+            except Exception:
+                pass
+
+        screening_complete = "<SCREENING_COMPLETE>" in reply
+        clean_reply = reply.replace("<SCREENING_COMPLETE>", "")
+        if "<SCREENING>" in clean_reply:
+            clean_reply = clean_reply.split("<SCREENING>")[0]
+        clean_reply = clean_reply.strip()
+
+        return {
+            "reply": clean_reply,
+            "data_collected": screening_data,
+            "is_complete": False,
+            "screening_complete": screening_complete,
+            "updated_conversation": updated_conversation,
+            "stage": "screening"
+        }
+
+    # ── STAGE 2: Form-aware interview ─────────────────────────────
+    elif stage == "interview":
+        forms_with_fields = session_meta.get("forms_with_fields", [])
+        system_prompt = INTERVIEW_SYSTEM
+
+        # Build field context for Claude
+        field_context = _build_question_prompt(forms_with_fields)
+        system_prompt = INTERVIEW_SYSTEM + f"\n\n{field_context}"
+
         updated_conversation = conversation + [{"role": "user", "content": user_message}]
 
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=2000,
-        system=SYSTEM_PROMPT,
-        messages=updated_conversation
-    )
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2000,
+            system=system_prompt,
+            messages=updated_conversation
+        )
 
-    reply = response.content[0].text
-    updated_conversation.append({"role": "assistant", "content": reply})
+        reply = response.content[0].text
+        updated_conversation.append({"role": "assistant", "content": reply})
 
-    is_complete = "<INTERVIEW_COMPLETE>" in reply
-    clean_reply = reply.replace("<INTERVIEW_COMPLETE>", "").strip()
-    if not clean_reply and is_complete:
-        clean_reply = "Thank you! All your information has been collected. Your document packet is now being prepared."
+        # Extract field data if present
+        field_data = {}
+        if "<FIELD_DATA>" in reply and "</FIELD_DATA>" in reply:
+            try:
+                raw = reply.split("<FIELD_DATA>")[1].split("</FIELD_DATA>")[0].strip()
+                field_data = json.loads(raw)
+            except Exception:
+                pass
+
+        is_complete = "<INTERVIEW_COMPLETE>" in reply
+        clean_reply = reply.replace("<INTERVIEW_COMPLETE>", "")
+        if "<FIELD_DATA>" in clean_reply:
+            clean_reply = clean_reply.split("<FIELD_DATA>")[0]
+        clean_reply = clean_reply.strip()
+
+        return {
+            "reply": clean_reply,
+            "data_collected": field_data,
+            "is_complete": is_complete,
+            "screening_complete": False,
+            "updated_conversation": updated_conversation,
+            "stage": "interview"
+        }
 
     return {
-        "reply": clean_reply,
-        "data_collected": {},   # We never rely on mid-turn data — finalize does it all
-        "is_complete": is_complete,
-        "updated_conversation": updated_conversation
+        "reply": "Something went wrong. Please refresh and try again.",
+        "data_collected": {},
+        "is_complete": False,
+        "screening_complete": False,
+        "updated_conversation": conversation,
+        "stage": stage
     }
 
 
 async def finalize_data_extraction(conversation: list, partial_data: dict) -> dict:
-    """
-    Single clean extraction pass over the full conversation.
-    Maps everything to exact field names the PDF filler expects.
-    """
-    extraction_prompt = f"""Read this entire interview conversation and extract ALL information the user provided into a single JSON object.
+    """Final pass — returns the field_data as-is since it already has exact field names."""
+    # partial_data already has exact PDF field names from <FIELD_DATA> tags
+    # Just do a cleanup pass to catch anything missed
+    extraction_prompt = f"""Based on this conversation, extract ALL data collected and return it as a JSON object.
 
-Use EXACTLY these field names:
-- petitioner_full_name, petitioner_dob, petitioner_address, petitioner_city, petitioner_state, petitioner_zip
-- petitioner_phone, petitioner_email, petitioner_gender, petitioner_birth_city, petitioner_birth_state
-- petitioner_employer, petitioner_employer_address, petitioner_occupation
-- petitioner_income, petitioner_monthly_income
-- petitioner_ssn_1, petitioner_ssn_2, petitioner_ssn_3
-- respondent_full_name, respondent_dob, respondent_address, respondent_city, respondent_state, respondent_zip
-- respondent_phone, respondent_employer, respondent_occupation, respondent_income, respondent_monthly_income
-- marriage_date, separation_date, marriage_city, marriage_county, marriage_state, marriage_city_state, marriage_type
-- filing_state, filing_county, courthouse, court_street, court_city_zip
-- expense_rent_mortgage, expense_food, expense_utilities, expense_transportation
-- expense_health_insurance, expense_childcare, expense_clothing, expense_education
-- expense_entertainment, expense_other, total_monthly_expenses
-- has_minor_children, children (list with name/dob/ssn/current_residence/school)
-- custody_type, child_support_amount, child_support_payor
-- parenting_schedule_description, visitation_schedule
-- has_real_property, real_property_address, real_property_value, real_property_mortgage_balance
-- real_property_equity, real_property_disposition, real_property_lender
-- has_vehicles, vehicles (list with make/model/year/value/loan_balance/who_keeps)
-- has_joint_bank_accounts, bank_accounts (list with bank_name/account_type/balance/who_keeps)
-- has_retirement_accounts, retirement_accounts (list with type/owner/value/split_percentage)
-- has_debts, debts (list with description/balance/who_responsible)
-- petitioner_wants_name_change, new_name_after_divorce
-- alimony_requested, alimony_amount, alimony_duration
-- has_current_passport, passport_number, passport_issue_date, passport_expiration_date, passport_action
+The keys should be the exact PDF field names discussed. Use the partial data as a base and fill in anything missing.
 
-IMPORTANT:
-- filing_state must be a 2-letter abbreviation (CA, NY, FL, etc.)
-- SSN parts: petitioner_ssn_1 = first 3 digits, petitioner_ssn_2 = middle 2, petitioner_ssn_3 = last 4
-- For expenses the user said spouse pays → use 0 for all expense fields
-- income values should be numbers (no $ or commas)
-- Return ONLY valid JSON. No markdown. No backticks. No explanation.
+Partial data: {json.dumps(partial_data)}
 
-Partial data already collected: {json.dumps(partial_data)}"""
+Return ONLY valid JSON, no markdown, no backticks."""
 
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=4000,
-        system="You are a data extraction assistant. Return only valid JSON, no markdown, no backticks.",
+        system="Return only valid JSON, no markdown.",
         messages=conversation + [{"role": "user", "content": extraction_prompt}]
     )
 
     try:
-        text = response.content[0].text.strip()
-        text = text.replace("```json", "").replace("```", "").strip()
+        text = response.content[0].text.strip().replace("```json", "").replace("```", "").strip()
         extracted = json.loads(text)
-        merged = {**partial_data, **extracted}
-        return merged
+        return {**partial_data, **extracted}
     except Exception as e:
-        logger.error(f"finalize_data_extraction failed: {e}")
-        logger.error(f"Raw response: {response.content[0].text[:500]}")
+        logger.error(f"finalize failed: {e}")
         return partial_data
