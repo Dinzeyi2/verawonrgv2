@@ -156,22 +156,24 @@ def fill_ny_form(pdf_bytes: bytes, form_filename: str, user_data: dict) -> bytes
 def fill_form(pdf_bytes: bytes, form_filename: str, user_data: dict) -> bytes:
     """
     Main entry point.
-    Routes to the correct filler based on state and filename.
-    
-    Args:
-        pdf_bytes:     Raw bytes of the government PDF
-        form_filename: Filename like 'fl-100.pdf', 'ud-2.pdf', 'fw4.pdf'
-        user_data:     Dict of user interview answers
-
-    Returns:
-        Filled PDF bytes
+    If user_data contains pre-mapped exact PDF field names (from the new intake agent),
+    use those directly. Otherwise fall back to the legacy mapping approach.
     """
     name = form_filename.lower()
     state = user_data.get("filing_state", "").upper()
 
-    # NY forms (UD-*)
-    if name.startswith("ud-") or state == "NY":
+    # Check if user_data has pre-mapped exact field names for this form
+    # Pre-mapped fields look like: "FL-100[0].Page1[0]...." keys
+    # We detect this by checking if any key contains "[0]." which is AcroForm style
+    has_acroform_keys = any("[0]." in str(k) for k in user_data.keys())
+
+    if has_acroform_keys:
+        # Data already has exact field names — fill directly
+        return _fill_acroform(pdf_bytes, user_data)
+
+    # NY forms (UD-*) — coordinate stamp approach
+    if name.startswith("ny_ud") or name.startswith("ud-") or (state == "NY" and name.startswith("ny_")):
         return fill_ny_form(pdf_bytes, form_filename, user_data)
 
-    # CA forms (FL-*) and federal forms (IRS, SSA)
+    # CA forms (FL-*) and federal forms (IRS, SSA) — legacy mapping
     return fill_ca_form(pdf_bytes, form_filename, user_data)
